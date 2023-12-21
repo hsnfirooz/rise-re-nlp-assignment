@@ -19,4 +19,7 @@ Following is the table for both experiment metrics. To have a comparison with th
 The results for all the 'B' categories are very similar. Although some of the numbers are higher than others, based on the stochasticity of the model training, there is no strong correlation to conclude here. I've used other models for this task and the results were similar. 
 There are two main hypotheses for this outcome:
 1. The pre-trained models have a high-quality embedding space which can fine-tune even for capacities with a small number of examples.
-2. Annotating only the first token of each work (if there is more than one) helps the performance. This is especially true for categories with a small number of examples.
+2. Annotating only the first token of each word (if there is more than one) helps the performance. This is especially true for categories with a small number of examples.
+
+#### Limitation and Future Work
+Many of the categories with a limited number of samples are suffering in all the performance metrics. Using few-shot learning techniques is one of the future works.
