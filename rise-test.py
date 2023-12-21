@@ -22,12 +22,18 @@ logging.basicConfig(
 argParser = argparse.ArgumentParser()
 
 argParser.add_argument("-e", "--experiment", 
-                       help="experiment in {A, B}",
+                       help="experiment tag",
+                       choices=["A", "B"],
                        default="A")
 
 argParser.add_argument("-m", "--model",
                        help="name of the model from HuggingFace Hub",
                        default="distilbert-base-cased")
+
+argParser.add_argument("-t", "--training",
+                       help="Training Or Evaluation",
+                       choices=["train", "eval"],
+                       default="train")
 
 args = argParser.parse_args()
 
@@ -75,7 +81,7 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME,
                                           add_prefix_space=True,)
 logging.info(f"'{args.model}\' model has been loaded.")
 
-OUTPUT_PATH = MODEL_NAME.split("/")[-1] + "-" + EXPERIMENT
+OUTPUT_PATH = MODEL_NAME.split("/")[-1] + "-" + EXPERIMENT + "/model"
 
 if tokenizer.is_fast:
      logging.info(f"Tokenizer is Fast! Great choice!")
@@ -93,17 +99,17 @@ model = AutoModelForTokenClassification.from_pretrained(MODEL_NAME,
 
 data_collator = DataCollatorForTokenClassification(tokenizer)
 
-args = TrainingArguments(
-    f"{OUTPUT_PATH}-finetuned",
-    evaluation_strategy = "epoch",
-    save_strategy = "epoch",
-    learning_rate=2e-5,
-    per_device_train_batch_size=BATCH_SIZE,
-    per_device_eval_batch_size=BATCH_SIZE,
-    num_train_epochs=2,
-    weight_decay=0.005,
-    torch_compile=torch.cuda.is_available(),
-)
+training_args = TrainingArguments(
+                OUTPUT_PATH,
+                evaluation_strategy = "epoch",
+                save_strategy = "epoch",
+                learning_rate=2e-5,
+                per_device_train_batch_size=BATCH_SIZE,
+                per_device_eval_batch_size=BATCH_SIZE,
+                num_train_epochs=2,
+                weight_decay=0.005,
+                torch_compile=torch.cuda.is_available(),
+                )
 
 def train(
         model: AutoModelForTokenClassification,
@@ -114,6 +120,7 @@ def train(
         compute_metrics: Callable,
         device: str,
         SAVE_MODEL = True,
+        TRAINING = True,
 
 ) -> None:
     trainer = Trainer(
@@ -126,21 +133,30 @@ def train(
         compute_metrics=compute_metrics,
     )
 
-    trainer.train()
+    if TRAINING:
+        trainer.train()
+        logging.info(f"Training is Done!")
 
-    metrics = trainer.evaluate(dataset["test"], metric_key_prefix="test")
-    trainer.save_metrics("test", metrics)
+        metrics = trainer.evaluate(dataset["test"], metric_key_prefix="test")
+        trainer.save_metrics("test", metrics)
 
-    if SAVE_MODEL:
-        trainer.save_model(f"./{OUTPUT_PATH}/model")
+        if SAVE_MODEL:
+            trainer.save_model(OUTPUT_PATH)
+    else:
+        trainer._load_from_checkpoint(OUTPUT_PATH)
+        eval_results = trainer.evaluate()
+        print(eval_results)
 
 if __name__ == "__main__":
     com_metrics = utils.prepare_compute_metrics(experiment_tag_list)
+
+    do_train = args.training == "train"
     train(model, 
-          args, 
+          training_args, 
           tokenized_pr_dataset, 
           data_collator, 
           tokenizer, 
           com_metrics, 
-          device=device
+          device=device,
+          TRAINING=do_train,
           )

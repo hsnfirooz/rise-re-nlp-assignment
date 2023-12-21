@@ -1,10 +1,10 @@
 import evaluate
 import numpy as np
 
-
 def prepare_compute_metrics(tag_list: dict,
-                            metric: str = "seqeval"):
+                            metric = "seqeval"):
     def compute_metrics(p):
+        nonlocal metric
         metric = evaluate.load(metric)
         label_list = list(tag_list.keys())
         predictions, labels = p
